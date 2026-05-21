@@ -81,9 +81,8 @@ class ListMessageContractsCommand extends Command
 
     protected function getOptions(): array
     {
-        /** @phpstan-ignore return.type */
         return [
-            ['format', null, InputOption::VALUE_OPTIONAL, 'Output format: table or json', 'table'],
+            new InputOption('format', null, InputOption::VALUE_OPTIONAL, 'Output format: table or json', 'table'),
         ];
     }
 }

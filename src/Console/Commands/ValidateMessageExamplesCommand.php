@@ -83,9 +83,8 @@ class ValidateMessageExamplesCommand extends Command
 
     protected function getOptions(): array
     {
-        /** @phpstan-ignore return.type */
         return [
-            ['fail-on-missing-example', null, InputOption::VALUE_NONE, 'Treat contracts with no example() as failures'],
+            new InputOption('fail-on-missing-example', null, InputOption::VALUE_NONE, 'Treat contracts with no example() as failures'),
         ];
     }
 }

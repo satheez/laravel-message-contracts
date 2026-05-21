@@ -34,10 +34,7 @@ jobs:
 
       - name: Require Laravel ${{ matrix.laravel }}
         run: |
-          composer require "illuminate/console:${{ matrix.laravel }}" \
-                           "illuminate/contracts:${{ matrix.laravel }}" \
-                           "illuminate/support:${{ matrix.laravel }}" \
-                           "illuminate/validation:${{ matrix.laravel }}" \
+          composer require "laravel/framework:${{ matrix.laravel }}" \
                            --no-update
 
       - name: Install dependencies
