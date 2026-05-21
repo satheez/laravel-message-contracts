@@ -67,11 +67,10 @@ class MakeMessageContractCommand extends GeneratorCommand
 
     protected function getOptions(): array
     {
-        /** @phpstan-ignore return.type */
         return [
             ...parent::getOptions(),
-            ['contract-version', null, InputOption::VALUE_OPTIONAL, 'Contract version', 1],
-            ['contract', null, InputOption::VALUE_OPTIONAL, 'Contract name (e.g. user.registered)'],
+            new InputOption('contract-version', null, InputOption::VALUE_OPTIONAL, 'Contract version', 1),
+            new InputOption('contract', null, InputOption::VALUE_OPTIONAL, 'Contract name (e.g. user.registered)'),
         ];
     }
 

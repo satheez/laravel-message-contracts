@@ -88,12 +88,11 @@ class ValidateMessageCommand extends Command
 
     protected function getOptions(): array
     {
-        /** @phpstan-ignore return.type */
         return [
-            ['contract-version', null, InputOption::VALUE_OPTIONAL, 'Contract version', 1],
-            ['file', null, InputOption::VALUE_OPTIONAL, 'Path to a JSON file'],
-            ['json', null, InputOption::VALUE_OPTIONAL, 'Inline JSON string'],
-            ['message', null, InputOption::VALUE_NONE, 'Treat the input as a full message envelope (not raw payload)'],
+            new InputOption('contract-version', null, InputOption::VALUE_OPTIONAL, 'Contract version', 1),
+            new InputOption('file', null, InputOption::VALUE_OPTIONAL, 'Path to a JSON file'),
+            new InputOption('json', null, InputOption::VALUE_OPTIONAL, 'Inline JSON string'),
+            new InputOption('message', null, InputOption::VALUE_NONE, 'Treat the input as a full message envelope (not raw payload)'),
         ];
     }
 }

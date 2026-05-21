@@ -2,7 +2,17 @@
 
 A Laravel package for defining, validating, versioning, and serializing message contracts shared between microservices or asynchronous systems.
 
+<div align="center">
+
 [![CI](https://github.com/satheez/laravel-message-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions)
+[![Tests](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/satheez/laravel-message-contracts.svg)](https://packagist.org/packages/satheez/laravel-message-contracts)
+[![Total Downloads](https://img.shields.io/packagist/dt/satheez/laravel-message-contracts.svg)](https://packagist.org/packages/satheez/laravel-message-contracts)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-blue)](https://www.php.net)
+[![Laravel](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012%20%7C%2013-red)](https://laravel.com)
+[![License](https://img.shields.io/packagist/l/satheez/laravel-message-contracts.svg)](LICENSE.md)
+
+</div>
 
 **Note:** This package is completely transport-agnostic. It does not replace your message broker or queue client (RabbitMQ, SQS, Kafka, Redis, etc.). Instead, it ensures the *payloads* inside your messages are strict, validated, and safely versioned.
 
