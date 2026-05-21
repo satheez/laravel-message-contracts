@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Satheez\MessageContracts\Contracts\MessageContract;
+
+final class {{ class }} extends MessageContract
+{
+    public static function contract(): string
+    {
+        return '{{ contractName }}';
+    }
+
+    public static function version(): int
+    {
+        return {{ version }};
+    }
+
+    public static function rules(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function example(): array
+    {
+        return [
+            //
+        ];
+    }
+}
