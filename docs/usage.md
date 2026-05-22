@@ -118,21 +118,29 @@ When your application is the producer (the one dispatching the message), you sho
 
 ```php
 use App\MessageContracts\OrderCreatedV1Message;
+use Satheez\MessageContracts\Exceptions\MessageValidationException;
 
-// 1. Create the message DTO (Validates automatically)
-$message = OrderCreatedV1Message::message([
-    'order_id' => 12345,
-    'total'    => 199.99,
-    'currency' => 'USD',
-]);
+// 1. Create the message DTO (validates automatically)
+$message = OrderCreatedV1Message::message(
+    payload: [
+        'order_id' => 12345,
+        'total'    => 199.99,
+        'currency' => 'USD',
+    ],
+    meta: [
+        'trace_id' => request()->header('X-Trace-Id'),
+    ],
+);
 
-// 2. Add optional metadata (tracing IDs, source app, etc.)
-$message->withMeta('trace_id', request()->header('X-Trace-Id'));
-
-// 3. Serialize and send
+// 2. Serialize and send
 $json = $message->toJson();
-// Send $json to RabbitMQ, SQS, etc.
+// Send $json to RabbitMQ, SQS, a Laravel Job, etc.
 ```
+
+> **Note:** `MessageContract::message()` validates the payload before building
+> the `Message` DTO (when `validate_outgoing` is enabled). If validation fails,
+> a `MessageValidationException` is thrown immediately so invalid messages never
+> reach the transport.
 
 The output JSON will look like this:
 
@@ -146,6 +154,8 @@ The output JSON will look like this:
     "currency": "USD"
   },
   "meta": {
+    "message_id": "01JWGJ8FGM7X8Y5H0R2M6W9S4D",
+    "created_at": "2026-05-22T04:45:00.000000Z",
     "trace_id": "ab12-cd34-ef56"
   }
 }
@@ -156,6 +166,8 @@ The output JSON will look like this:
 ## Consumer Side: Receiving Messages
 
 When your application receives a message from a broker, it needs to parse and validate it.
+
+### From JSON
 
 ```php
 use Satheez\MessageContracts\DTO\Message;
@@ -173,12 +185,38 @@ try {
 
     // 4. Safely access data
     $orderId = $message->payload('order_id');
-    
+
 } catch (MessageValidationException $e) {
     // The payload was invalid or the contract is not registered.
     // Log the error and perhaps send the message to a Dead Letter Queue.
     Log::error('Invalid message received', ['errors' => $e->getErrors()]);
 }
+```
+
+### From an Array
+
+Some brokers (e.g., SQS with automatic JSON decoding) give you a decoded array
+instead of a raw string:
+
+```php
+$message = Message::fromArray($decodedArray);
+$message->validateOrFail();
+```
+
+### Non-Throwing Validation
+
+Use `validate()` instead of `validateOrFail()` when you want to inspect the
+result without catching an exception:
+
+```php
+$result = $message->validate();
+
+if ($result->failed()) {
+    Log::warning('Validation failed', ['errors' => $result->errors()]);
+    return;
+}
+
+$orderId = $message->payload('order_id');
 ```
 
 ### Accessing Data
@@ -195,3 +233,8 @@ $message->payload('address.city', 'N/A'); // Supports dot-notation and defaults
 
 $message->meta('trace_id');   // Access metadata
 ```
+
+
+---
+
+**Previous:** [Installation](installation.md) | **Next:** [Configuration](configuration.md)
