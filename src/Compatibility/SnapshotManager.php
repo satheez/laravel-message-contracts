@@ -16,7 +16,7 @@ class SnapshotManager
 
         $snapshot = [
             'generated_at' => now()->toISOString(),
-            'package' => 'satheez/laravel-payload-contracts',
+            'package' => 'satheez/laravel-message-contracts',
             'contracts' => [],
         ];
 

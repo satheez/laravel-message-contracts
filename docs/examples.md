@@ -62,6 +62,8 @@ Register both versions in `config/message-contracts.php`:
 When the consumer receives a `user.registered` message, the package's `MessageContractRegistry` automatically matches the incoming `"version"` key to the correct Contract class.
 
 ```php
+use Satheez\MessageContracts\DTO\Message;
+
 $message = Message::fromJson($json);
 $message->validateOrFail();
 
@@ -118,11 +120,11 @@ If you want to be precise about *which* fields failed validation:
 ```php
 it('fails when currency is missing', function () {
     MessageAssert::assertInvalidFields(
-        OrderCreatedV1Message::class, 
+        OrderCreatedV1Message::class,
         [
             'order_id' => 10,
             'total'    => 50.00,
-        ], 
+        ],
         ['currency'] // We expect an error on the 'currency' key
     );
 });
@@ -154,6 +156,8 @@ All contract examples are valid.
 If you have existing event listeners that hook into Eloquent events, you can quickly wrap the model data into a strict contract before sending it to a broker.
 
 ```php
+use App\MessageContracts\UserRegisteredV1Message;
+
 class UserObserver
 {
     public function created(User $user)
@@ -162,10 +166,246 @@ class UserObserver
         $message = UserRegisteredV1Message::message([
             'user_id' => $user->id,
             'email'   => $user->email,
+            'registered_at' => $user->created_at->toISOString(),
         ]);
-        
-        // Push to an exchange
+
+        // Push to an exchange (pseudocode — replace with your broker client)
         MyRabbitMQClient::publish('events_exchange', 'user.registered', $message->toJson());
     }
 }
 ```
+
+---
+
+## 5. Using with Laravel Jobs & Queues
+
+This is the most common integration pattern for Laravel applications. The
+contract validates the payload at dispatch time, and the job re-validates it on
+the consumer side for safety.
+
+### Define the Contract
+
+```php
+namespace App\MessageContracts;
+
+use Satheez\MessageContracts\Contracts\MessageContract;
+
+final class SendWelcomeEmailV1Message extends MessageContract
+{
+    public static function contract(): string
+    {
+        return 'email.send-welcome';
+    }
+
+    public static function version(): int
+    {
+        return 1;
+    }
+
+    public static function rules(): array
+    {
+        return [
+            'user_id'    => ['required', 'integer'],
+            'email'      => ['required', 'email'],
+            'first_name' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    public static function example(): array
+    {
+        return [
+            'user_id'    => 42,
+            'email'      => 'jane@example.com',
+            'first_name' => 'Jane',
+        ];
+    }
+}
+```
+
+### Create a Job That Carries the Contract Message
+
+```php
+namespace App\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Satheez\MessageContracts\DTO\Message;
+
+class SendWelcomeEmailJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public readonly string $messageJson;
+
+    /**
+     * Accept the pre-validated Message DTO and store its JSON.
+     */
+    public function __construct(Message $message)
+    {
+        // Serialize the contract message to JSON for queue transport.
+        // The Message DTO is readonly and already validated at dispatch time.
+        $this->messageJson = $message->toJson();
+    }
+
+    /**
+     * Process the job on the consumer side.
+     */
+    public function handle(): void
+    {
+        // 1. Parse the envelope back into a Message DTO
+        $message = Message::fromJson($this->messageJson);
+
+        // 2. Re-validate the payload against the registered contract
+        $message->validateOrFail();
+
+        // 3. Use the validated payload safely
+        $email     = $message->payload('email');
+        $firstName = $message->payload('first_name');
+
+        // 4. Execute business logic
+        Mail::to($email)->send(new WelcomeEmail($firstName));
+
+        logger()->info('Welcome email sent', [
+            'contract' => $message->contract(),
+            'version'  => $message->version(),
+            'user_id'  => $message->payload('user_id'),
+        ]);
+    }
+}
+```
+
+### Dispatch from a Controller
+
+```php
+use App\Jobs\SendWelcomeEmailJob;
+use App\MessageContracts\SendWelcomeEmailV1Message;
+
+class RegistrationController extends Controller
+{
+    public function store(Request $request)
+    {
+        $user = User::create($request->validated());
+
+        // Build a validated contract message (validates at creation time)
+        $message = SendWelcomeEmailV1Message::message(
+            payload: [
+                'user_id'    => $user->id,
+                'email'      => $user->email,
+                'first_name' => $user->first_name,
+            ],
+            meta: [
+                'triggered_by' => 'registration',
+            ],
+        );
+
+        // Dispatch the job — the validated message travels through the queue
+        SendWelcomeEmailJob::dispatch($message);
+
+        return response()->json(['status' => 'registered']);
+    }
+}
+```
+
+> **Why serialize to JSON in the constructor?** Laravel serializes job
+> properties for queue storage. Storing the JSON string keeps the payload
+> transport-safe and avoids serialization issues with the readonly `Message`
+> DTO.
+
+---
+
+## 6. Cross-Service Job Pattern
+
+When Service A dispatches a message and Service B consumes it, both services
+register the same contract class independently. Service B uses a generic job
+that routes by contract name.
+
+```php
+namespace App\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Satheez\MessageContracts\DTO\Message;
+
+class ProcessContractMessageJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(public readonly string $rawJson) {}
+
+    public function handle(): void
+    {
+        $message = Message::fromJson($this->rawJson);
+        $message->validateOrFail();
+
+        // Route based on contract name and version
+        match ($message->contract()) {
+            'email.send-welcome' => $this->handleWelcomeEmail($message),
+            'order.created'      => $this->handleOrderCreated($message),
+            default              => logger()->warning('Unknown contract', [
+                'contract' => $message->contract(),
+                'version'  => $message->version(),
+            ]),
+        };
+    }
+
+    private function handleWelcomeEmail(Message $message): void
+    {
+        Mail::to($message->payload('email'))
+            ->send(new WelcomeEmail($message->payload('first_name')));
+    }
+
+    private function handleOrderCreated(Message $message): void
+    {
+        // Process order...
+    }
+}
+```
+
+---
+
+## 7. Webhook Receiver
+
+When your application receives webhook payloads from an external system, you can
+validate them against a contract before processing.
+
+```php
+use App\MessageContracts\StripePaymentSucceededV1Message;
+use Satheez\MessageContracts\DTO\Message;
+use Satheez\MessageContracts\Exceptions\MessageValidationException;
+
+class WebhookController extends Controller
+{
+    public function stripe(Request $request)
+    {
+        // Build a message from the incoming webhook payload
+        $message = StripePaymentSucceededV1Message::message(
+            payload: $request->input('data'),
+        );
+
+        try {
+            $message->validateOrFail();
+        } catch (MessageValidationException $e) {
+            return response()->json(['error' => 'Invalid payload'], 422);
+        }
+
+        // Process validated payload
+        $paymentId = $message->payload('payment_id');
+        $amount    = $message->payload('amount');
+
+        // ...
+
+        return response()->json(['status' => 'ok']);
+    }
+}
+```
+
+
+---
+
+**Previous:** [Comparison](comparison.md) | **Next:** [FAQ](faq.md)

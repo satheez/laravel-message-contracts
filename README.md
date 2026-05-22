@@ -1,8 +1,11 @@
 # Laravel Message Contracts
 
-A Laravel package for defining, validating, versioning, and serializing message contracts shared between microservices or asynchronous systems.
+A Laravel package for defining, validating, versioning, documenting, and testing
+the JSON payloads your services exchange.
 
 <div align="center">
+
+<img src="docs/assets/banner.png" alt="Laravel Message Contracts" width="100%">
 
 [![CI](https://github.com/satheez/laravel-message-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions)
 [![Tests](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml)
@@ -14,52 +17,72 @@ A Laravel package for defining, validating, versioning, and serializing message 
 
 </div>
 
-**Note:** This package is completely transport-agnostic. It does not replace your message broker or queue client (RabbitMQ, SQS, Kafka, Redis, etc.). Instead, it ensures the *payloads* inside your messages are strict, validated, and safely versioned.
+Laravel Message Contracts turns queue, event, webhook, and broker payloads into
+explicit PHP classes. A contract class gives each message a stable name, an
+integer version, Laravel validation rules, examples, generated JSON Schema,
+AsyncAPI documentation, compatibility snapshots, and test assertions.
 
-## 🚀 Quick Links
-- [Detailed Usage Guide](docs/usage.md)
-- [Examples & Recipes](docs/examples.md)
+The package is transport-agnostic. It does not replace RabbitMQ, SQS, Kafka,
+Redis, Laravel queues, webhooks, an outbox, retries, or delivery guarantees. It
+protects the JSON message body that moves through those systems.
 
-## 📦 Installation
+Use it when multiple producers, consumers, services, or teams need a shared
+payload boundary that is stricter than plain arrays but lighter than a full
+schema registry.
 
-Require the package via Composer:
+## Highlights
+
+- Define one source of truth for every message payload.
+- Validate outgoing producer payloads before serialization.
+- Validate incoming consumer payloads before business logic reads them.
+- Reject unknown payload keys in strict mode.
+- Keep `V1`, `V2`, and later contract versions registered side by side.
+- Export JSON Schema for non-Laravel consumers.
+- Generate AsyncAPI 2.6.0 documentation from registered contracts.
+- Detect breaking payload changes in CI with snapshots.
+- Test payloads with Pest or PHPUnit assertion helpers.
+- Integrate with Spatie Laravel Data when your payload already has a data class.
+
+## Requirements
+
+| Requirement | Version |
+| --- | --- |
+| PHP | `^8.2` |
+| Laravel | `^10.0`, `^11.0`, `^12.0`, or `^13.0` |
+
+## Installation
 
 ```bash
 composer require satheez/laravel-message-contracts
-```
-
-Publish the configuration file:
-
-```bash
 php artisan vendor:publish --tag=message-contracts-config
 ```
 
-## ✨ Why use this package?
-
-In microservice architectures, services often exchange JSON payloads. Without formal contracts, a producer might change a field name, silently breaking the consumer service.
-
-**Laravel Message Contracts** solves this by providing:
-
-1. **Strict Structure**: Define payloads as PHP classes with built-in Laravel validation rules.
-2. **Versioning**: Safely introduce `V1`, `V2` contracts without breaking older consumers.
-3. **Producer & Consumer Validation**: Catch bad data before it leaves your app, and reject bad data before it enters your business logic.
-4. **Standardized Envelope**: Automatically wrap your business payloads in a standard `{ "contract": "...", "version": 1, "payload": {...} }` format.
-
-## ⚡ Quick Start
-
-### 1. Create a Contract
-
-Generate a new contract using Artisan:
+Optionally publish the generator stub:
 
 ```bash
-php artisan make:message-contract UserRegistered --contract-version=1
+php artisan vendor:publish --tag=message-contracts-stubs
 ```
 
-Define its validation rules:
+See [Installation](docs/installation.md) for the full setup flow.
+
+## Quick Start
+
+Imagine you publish a `user.registered` event that an email service, analytics
+pipeline, and billing service all consume. A message contract makes the payload
+shape explicit, validated, and versioned so every consumer knows exactly what to
+expect.
+
+Generate a contract class:
+
+```bash
+php artisan make:message-contract UserRegistered \
+  --contract-version=1 \
+  --contract=user.registered
+```
+
+Define the payload rules in the generated class:
 
 ```php
-namespace App\MessageContracts;
-
 use Satheez\MessageContracts\Contracts\MessageContract;
 
 final class UserRegisteredV1Message extends MessageContract
@@ -78,15 +101,14 @@ final class UserRegisteredV1Message extends MessageContract
     {
         return [
             'user_id' => ['required', 'integer'],
-            'email'   => ['required', 'email'],
+            'email' => ['required', 'email'],
+            'registered_at' => ['required', 'date'],
         ];
     }
 }
 ```
 
-### 2. Register the Contract
-
-Add it to your `config/message-contracts.php`:
+Register it in `config/message-contracts.php`:
 
 ```php
 'contracts' => [
@@ -94,121 +116,91 @@ Add it to your `config/message-contracts.php`:
 ],
 ```
 
-### 3. Producer Side: Create & Validate
-
-When dispatching an event, create a `Message` DTO from your contract. This automatically validates the outgoing payload.
+Create and serialize a producer message:
 
 ```php
-use App\MessageContracts\UserRegisteredV1Message;
+$message = UserRegisteredV1Message::message(
+    payload: [
+        'user_id' => 123,
+        'email' => 'john@example.com',
+        'registered_at' => now()->toISOString(),
+    ],
+    meta: [
+        'trace_id' => 'req-7f1c4c2a',
+    ],
+);
 
-$message = UserRegisteredV1Message::message([
-    'user_id' => 123,
-    'email'   => 'john@example.com',
-]);
-
-// Convert to JSON and send it via your queue/broker of choice
 $json = $message->toJson();
-RabbitMQ::publish($json);
 ```
 
-### 4. Consumer Side: Receive & Validate
-
-When receiving a message, parse and validate it before processing.
+Parse and validate a consumer message:
 
 ```php
 use Satheez\MessageContracts\DTO\Message;
 
-$json = $request->getContent(); // or from queue payload
-
 $message = Message::fromJson($json);
-
-// Resolves the correct contract (e.g. user.registered v1) and validates it
 $message->validateOrFail();
 
 $userId = $message->payload('user_id');
 ```
 
-## 🛠 Artisan Commands
+The default envelope contains `contract`, `version`, `payload`, and optional
+`meta` keys. Metadata such as `message_id` and `created_at` can be configured.
 
-- `php artisan make:message-contract Name` - Scaffold a new contract.
-- `php artisan message-contracts:list` - See all registered contracts.
-- `php artisan message-contracts:validate` - Validate raw JSON against a contract.
-- `php artisan message-contracts:validate-examples` - Validate all `example()` arrays defined in your contracts.
-- `php artisan message-contracts:export-json-schema` - Export registered message contracts as JSON Schema files.
-- `php artisan message-contracts:snapshot` - Create a snapshot of all registered message contracts.
-- `php artisan message-contracts:check-breaking-changes` - Check for breaking changes against a previous snapshot.
+## Important Concepts
 
-## 📑 JSON Schema Generation
+| Concept | Summary |
+| --- | --- |
+| Contract name | Stable dot-notation name such as `user.registered`. Do not include the version. |
+| Version | Integer starting at `1`. Add a new version for breaking payload changes. |
+| Strict mode | Rejects payload keys that are not declared in `rules()`. Enabled by default. |
+| Registry | Resolves incoming messages by `contract` and `version`. |
+| Snapshot | Captures current schemas so CI can detect breaking changes later. |
 
-You can export your message contracts as JSON Schema files. This is useful for sharing schemas with consumer services written in other languages or generating documentation.
+For breaking changes, create `UserRegisteredV2Message` and keep V1 registered
+until consumers migrate.
 
-```bash
-php artisan message-contracts:export-json-schema --output=docs/schemas
-```
+## Command Overview
 
-## 🛡️ Preventing Breaking Changes
+| Command | Purpose |
+| --- | --- |
+| `make:message-contract` | Scaffold a versioned contract class. |
+| `message-contracts:list` | Show registered contracts. |
+| `message-contracts:validate` | Validate a raw payload or full envelope. |
+| `message-contracts:validate-examples` | Validate every contract `example()`. |
+| `message-contracts:export-json-schema` | Export payload or envelope JSON Schemas. |
+| `message-contracts:export-asyncapi` | Export AsyncAPI documentation. |
+| `message-contracts:snapshot` | Save the current contract schema snapshot. |
+| `message-contracts:check-breaking-changes` | Compare current contracts to a previous snapshot. |
 
-When versioning message contracts, it's crucial to ensure that you don't inadvertently introduce breaking changes (e.g., removing a required field, narrowing a type constraint) without bumping the version number.
+See [Checks](docs/checks.md), [Output formats](docs/output.md), and
+[CI](docs/ci.md) for command options and CI examples.
 
-You can create a snapshot of your contracts:
+## Documentation
 
-```bash
-php artisan message-contracts:snapshot
-```
+| Guide | Covers |
+| --- | --- |
+| [Installation](docs/installation.md) | Composer install, publishing config and stubs, first contract setup |
+| [Usage guide](docs/usage.md) | Defining, registering, producing, consuming, and validating messages |
+| [Configuration](docs/configuration.md) | `config/message-contracts.php` options, strict mode, metadata, schema export |
+| [Architecture](docs/architecture.md) | Core classes, producer flow, consumer flow, and generated docs |
+| [Output formats](docs/output.md) | Message envelopes, list JSON, JSON Schema, AsyncAPI, and snapshots |
+| [Checks](docs/checks.md) | Artisan validation, schema, example, and compatibility checks |
+| [CI](docs/ci.md) | GitHub Actions patterns for package and application contract checks |
+| [Comparison](docs/comparison.md) | How this package compares with plain arrays, Form Requests, JSON Schema, AsyncAPI, and schema registries |
+| [Examples and recipes](docs/examples.md) | Versioning, testing helpers, example validation, Laravel Jobs, and producer-side patterns |
+| [FAQ](docs/faq.md) | Common usage, versioning, strict mode, envelope, schema, and Spatie Data questions |
 
-And later, in your CI pipeline, verify that no breaking changes were introduced:
+## Contributing
 
-```bash
-php artisan message-contracts:check-breaking-changes
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, coding standards, and
+pull request guidelines.
 
-## 🧪 Testing
+## Changelog
 
-The package provides a `MessageAssert` helper for your Pest or PHPUnit tests:
+All notable changes are documented in [CHANGELOG.md](CHANGELOG.md).
 
-```php
-use Satheez\MessageContracts\Testing\MessageAssert;
+## License
 
-MessageAssert::assertValid(UserRegisteredV1Message::class, [
-    'user_id' => 1,
-    'email' => 'test@example.com',
-]);
-```
-
-## 📡 AsyncAPI Generation
-
-You can generate comprehensive **AsyncAPI 2.6.0** documentation for your message contracts. 
-
-```bash
-php artisan message-contracts:export-asyncapi
-```
-
-To enrich the generated documentation, you can optionally override methods in your `MessageContract`:
-```php
-public static function title(): ?string { return 'User Registered Event'; }
-public static function channel(): ?string { return 'users.events'; }
-public static function direction(): string { return 'publish'; } // publish, subscribe, both
-public static function tags(): array { return ['Users', 'Billing']; }
-```
-
-## 🗃️ Spatie Laravel Data Integration
-
-If you already use the excellent `spatie/laravel-data` package, you don't need to write validation rules twice. Simply extend `DataPayloadContract`:
-
-```php
-use Satheez\MessageContracts\SpatieData\DataPayloadContract;
-use App\Data\UserData;
-
-final class UserRegisteredV1Message extends DataPayloadContract
-{
-    public static function contract(): string { return 'user.registered'; }
-    public static function version(): int { return 1; }
-    
-    // The validation and creation logic is automatically delegated to your Data object!
-    public static function dataClass(): string { return UserData::class; }
-}
-```
-The internal validator will natively run `UserData::validateAndCreate($payload)`.
-
----
-See the [Documentation](docs/usage.md) for full configuration and advanced usage.
+Laravel Message Contracts is open-sourced software licensed under the
+[MIT license](LICENSE.md).

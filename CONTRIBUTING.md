@@ -16,6 +16,12 @@ composer install
 vendor/bin/pest
 ```
 
+To run a specific test file or filter by test name:
+
+```bash
+vendor/bin/pest --filter="ValidatesOutgoing"
+```
+
 ## Code Style
 
 ```bash
