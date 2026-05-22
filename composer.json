@@ -1,6 +1,5 @@
 {
     "name": "satheez/laravel-message-contracts",
-    "version": "1.0.0",
     "description": "Define, validate, version, and serialize message contracts shared between Laravel services.",
     "keywords": ["laravel", "message", "contracts", "microservices", "payload", "validation"],
     "homepage": "https://github.com/satheez/laravel-message-contracts",
