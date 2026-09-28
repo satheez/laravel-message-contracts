@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dropped support for Laravel 10 and 11. The package now requires Laravel 12 or 13 (`laravel/framework: ^12.0|^13.0`).
+- PHP `^8.2` remains the package floor. Laravel 13 still requires PHP 8.3+.
+- Development dependencies now follow that floor: Orchestra Testbench `^10.0|^11.0`, Pest 3 or 4, and Larastan 3 with PHPStan 2.
+- CI covers Laravel 12 on PHP 8.2–8.5 and Laravel 13 on PHP 8.3–8.5. The redundant `run-tests` workflow was removed.
+
 ## [1.0.0] - 2026-05-22
 
 ### Added

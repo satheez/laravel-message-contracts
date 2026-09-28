@@ -8,11 +8,10 @@ the JSON payloads your services exchange.
 <img src="docs/assets/banner.png" alt="Laravel Message Contracts" width="100%">
 
 [![CI](https://github.com/satheez/laravel-message-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions)
-[![Tests](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml/badge.svg)](https://github.com/satheez/laravel-message-contracts/actions/workflows/run-tests.yml)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/satheez/laravel-message-contracts.svg)](https://packagist.org/packages/satheez/laravel-message-contracts)
 [![Total Downloads](https://img.shields.io/packagist/dt/satheez/laravel-message-contracts.svg)](https://packagist.org/packages/satheez/laravel-message-contracts)
 [![PHP](https://img.shields.io/badge/PHP-8.2%2B-blue)](https://www.php.net)
-[![Laravel](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012%20%7C%2013-red)](https://laravel.com)
+[![Laravel](https://img.shields.io/badge/Laravel-12%20%7C%2013-red)](https://laravel.com)
 [![License](https://img.shields.io/packagist/l/satheez/laravel-message-contracts.svg)](LICENSE.md)
 
 </div>
@@ -47,8 +46,8 @@ schema registry.
 
 | Requirement | Version |
 | --- | --- |
-| PHP | `^8.2` |
-| Laravel | `^10.0`, `^11.0`, `^12.0`, or `^13.0` |
+| PHP | `^8.2` (Laravel 13 requires PHP 8.3+) |
+| Laravel | `^12.0` or `^13.0` |
 
 ## Installation
 

@@ -47,13 +47,11 @@ class LaravelRuleMapper
 
         if ($part === '*') {
             // Array items
-            if (! isset($currentLevel['items'])) {
-                $currentLevel['items'] = [
-                    'type' => 'object',
-                    'properties' => [],
-                    'additionalProperties' => config('message-contracts.json_schema.additional_properties', false),
-                ];
-            }
+            $currentLevel['items'] ??= [
+                'type' => 'object',
+                'properties' => [],
+                'additionalProperties' => config('message-contracts.json_schema.additional_properties', false),
+            ];
             if ($path === []) {
                 // Primitive array item
                 $this->applyPropertyRules($currentLevel['items'], $rules, '*');
@@ -65,20 +63,14 @@ class LaravelRuleMapper
             return;
         }
 
-        if (! isset($currentLevel['properties'])) {
-            $currentLevel['properties'] = [];
-        }
+        $currentLevel['properties'] ??= [];
 
-        if (! isset($currentLevel['properties'][$part])) {
-            $currentLevel['properties'][$part] = [];
-        }
+        $currentLevel['properties'][$part] ??= [];
 
         if ($path === []) {
             // Leaf node
             if (in_array('required', $rules, true)) {
-                if (! isset($currentLevel['required'])) {
-                    $currentLevel['required'] = [];
-                }
+                $currentLevel['required'] ??= [];
                 if (! in_array($part, $currentLevel['required'], true)) {
                     $currentLevel['required'][] = $part;
                 }
@@ -92,9 +84,7 @@ class LaravelRuleMapper
                 $currentLevel['properties'][$part]['additionalProperties'] = config('message-contracts.json_schema.additional_properties', false);
             }
             if (in_array('required', $rules, true)) {
-                if (! isset($currentLevel['required'])) {
-                    $currentLevel['required'] = [];
-                }
+                $currentLevel['required'] ??= [];
                 if (! in_array($part, $currentLevel['required'], true)) {
                     $currentLevel['required'][] = $part;
                 }

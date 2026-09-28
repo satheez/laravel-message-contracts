@@ -4,8 +4,8 @@
 
 | Requirement | Version |
 | --- | --- |
-| PHP | `^8.2` |
-| Laravel | `^10.0`, `^11.0`, `^12.0`, or `^13.0` |
+| PHP | `^8.2` (Laravel 13 requires PHP 8.3+) |
+| Laravel | `^12.0` or `^13.0` |
 
 ## Install With Composer
 

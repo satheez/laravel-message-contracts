@@ -7,12 +7,11 @@ compatibility snapshots.
 
 ## Existing Package Workflows
 
-This repository includes two GitHub Actions workflows:
+This repository includes one GitHub Actions workflow:
 
 | Workflow | Purpose |
 | --- | --- |
-| `.github/workflows/ci.yml` | Runs Pint, Rector dry-run, PHPStan, and Pest across PHP 8.2, 8.3, 8.4 and Laravel 10, 11, 12, 13 where supported. |
-| `.github/workflows/run-tests.yml` | Runs tests on prefer-lowest and prefer-stable dependencies, plus style and PHPStan checks. |
+| `.github/workflows/ci.yml` | Runs Pint, Rector dry-run, PHPStan, and Pest on Laravel 12 (PHP 8.2–8.5) and Laravel 13 (PHP 8.3–8.5). |
 
 Run the same full local quality gate with:
 
@@ -37,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
