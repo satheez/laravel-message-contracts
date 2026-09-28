@@ -63,12 +63,10 @@ class AsyncApiGenerator
             $channelName = method_exists($contractClass, 'channel') && $contractClass::channel() ? $contractClass::channel() : $name;
             $direction = method_exists($contractClass, 'direction') ? $contractClass::direction() : 'both';
 
-            if (! isset($channelMessages[$channelName])) {
-                $channelMessages[$channelName] = [
-                    'publish' => [],
-                    'subscribe' => [],
-                ];
-            }
+            $channelMessages[$channelName] ??= [
+                'publish' => [],
+                'subscribe' => [],
+            ];
 
             if (in_array($direction, ['publish', 'both'], true)) {
                 $channelMessages[$channelName]['publish'][] = $messageId;
